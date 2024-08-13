@@ -1,0 +1,9 @@
+
+{
+  "name" : "ModFirmwareActuators",
+  "version" : "0.0.1",
+  "description" : "A library collection providing firmware for basic actuation",
+  "dependencies" : {
+      "ModFirmwareBase" : "https://github.com/chof747/modfirmware-base.git"
+  }
+}
