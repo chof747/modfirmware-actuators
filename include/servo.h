@@ -28,6 +28,9 @@ namespace ModFirmWare
     void moveToAngle(float angle);
     void moveToPosition(long position);
 
+    void enable();
+    void disable();
+
   protected:
     long minPosition;
     long maxPosition;
@@ -42,6 +45,11 @@ namespace ModFirmWare
     u_int minPulse;
     u_int maxPulse;
 
+    u_int currentPulse;
+    u_int targetPulse;
+    u_int lastChange;
+    u_int speed;
+
 #ifdef ESP32
     uint8_t pwmChannel;
     uint8_t pwmResolution;
@@ -50,6 +58,7 @@ namespace ModFirmWare
 
     void initialize(uint8_t cp, uint8_t ep, bool en, u_int minpw, u_int maxpw);
     void applyPulseWidth(int pw);
+    long calcPulseWidth(int pw);
   };
 };
 
