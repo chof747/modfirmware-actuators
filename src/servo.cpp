@@ -31,6 +31,7 @@ Servo::Servo(uint8_t controlPin, uint8_t enablePin, uint8_t pwmChannel, uint8_t 
   this->pwmFrequency = frequency;
   this->pwmResolution = resolution;
   speed = calcPulseWidth((maxPulse - minPulse) / 8);  //speed is initialized in quarter of the pulse width per second
+  speed = (50 < speed) ? 50 : speed;
 }
 #else
 Servo::Servo(uint8_t controlPin, u_int minPulse, u_int maxPulse)
@@ -77,14 +78,20 @@ bool Servo::setup(Application *app)
 void Servo::loop()
 //****************************************************************************************
 {
-  if (currentPulse == targetPulse)
-  {
-    return;
-  }
 
   if (INTERVAL > (millis() - lastChange))
   {
      return;
+  }
+
+  if (currentPulse == targetPulse)
+  {
+    if (parking)
+    {
+      disable();
+      parking = false;
+    }
+    return;
   }
 
   int delta = (int)((targetPulse > currentPulse) ? 1 : -1)  * (int)(speed * INTERVAL) / 1000;
@@ -113,6 +120,12 @@ void Servo::loop()
 
 }
 
+void Servo::invert(bool inverted)
+//****************************************************************************************
+{
+  this->inverted = inverted;
+}
+
 void Servo::setMaxAngle(float maxAngle)
 //****************************************************************************************
 {
@@ -124,27 +137,44 @@ void Servo::setMaxPosition(long maxPosition)
 //****************************************************************************************
 {
   this->maxPosition = (maxPosition > this->minPosition) ? maxPosition : this->maxPosition;
-  logger->debug(LOGTAG, "changed maxPosition of servo to %d", maxPosition);
+  logger->debug(LOGTAG, "changed maxPosition of servo to %d", this->maxPosition);
 }
 
 void Servo::setMinPosition(long minPosition)
 //****************************************************************************************
 {
   this->minPosition = (minPosition < this->maxPosition) ? minPosition : this->minPosition;
-  logger->debug(LOGTAG, "changed minPosition of servo to %d", minPosition);
+  logger->debug(LOGTAG, "changed minPosition of servo to %d", this->minPosition);
 }
 
-void Servo::moveToAngle(float angle)
+void Servo::moveToAngle(float angle, bool parkAfter)
 //****************************************************************************************
 {
   long a = (long)round(angle * 100);
   applyPulseWidth(map(a, 0, maxAngle, minPulse, maxPulse));
+  parking = parkAfter;
 }
 
-void Servo::moveToPosition(long position)
+void Servo::moveToPosition(long position, bool parkAfter)
 //****************************************************************************************
 {
-  applyPulseWidth(map(position, minPosition, maxPosition, minPulse, maxPulse));
+  if (position < minPosition)
+  {
+    applyPulseWidth((inverted) ? maxPulse : minPulse);
+  }
+  else if (position > maxPosition)
+  {
+    applyPulseWidth((inverted) ? minPulse : maxPulse);
+  }
+  else
+  {
+    logger->debug(LOGTAG, "min: %d, max:%d, minpw: %d, maxpw:%d, pos: %d", minPosition, maxPosition, minPulse, maxPulse, position);
+    applyPulseWidth(map(position, minPosition, maxPosition, 
+                        (inverted) ? maxPulse : minPulse, 
+                        (inverted) ? minPulse : maxPulse));
+  } 
+
+  parking = parkAfter;
 }
 
 void Servo::disable()
@@ -166,6 +196,7 @@ void Servo::initialize(uint8_t cp, uint8_t ep, bool en, u_int minpw, u_int maxpw
   controlPin = cp;
   enablePin = ep;
   enabling = en;
+  parking = false;
 
   minPulse = minpw;
   maxPulse = maxpw;
@@ -176,6 +207,7 @@ void Servo::initialize(uint8_t cp, uint8_t ep, bool en, u_int minpw, u_int maxpw
   maxAngle = 18000;
   minPosition = 0;
   maxPosition = 100;
+  inverted = false;
 
   speed = 1;
 
@@ -192,9 +224,10 @@ long Servo::calcPulseWidth(int pw)
 {
 #ifdef ESP32  
   int maxDutyCycle = (1 << pwmResolution) - 1; // Maximum duty cycle value based on resolution
-  long pwm = (pw * maxDutyCycle) / (1000000 / pwmFrequency);
+  //long pwm = (pw * maxDutyCycle) / (1000000 / pwmFrequency);
+  long pwm = (pw * maxDutyCycle * pwmFrequency) / (1000000);
 
-  logger->debug(LOGTAG, "Applying pulse width of %d resulting in duty of %d -- maxduty = %d", pw, pwm, maxDutyCycle);
+  logger->info(LOGTAG, "Applying pulse width of %d resulting in duty of %d -- maxduty = %d", pw, pwm, maxDutyCycle);
 #else
   long pwm = (pw * 1023) / 20000;
 #endif // ESP32

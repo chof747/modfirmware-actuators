@@ -24,9 +24,10 @@ namespace ModFirmWare
     float getMaxAngle() { return maxAngle / 100.0;}
     void setMaxPosition(long maxPosition);
     void setMinPosition(long minPosition);
+    void invert(bool inverted = true);
 
-    void moveToAngle(float angle);
-    void moveToPosition(long position);
+    void moveToAngle(float angle, bool parkAfter = false);
+    void moveToPosition(long position, bool parkAfter = false);
 
     void enable();
     void disable();
@@ -36,11 +37,13 @@ namespace ModFirmWare
     long maxPosition;
 
     long maxAngle;
+    bool inverted;
 
   private:
     uint8_t controlPin;
     uint8_t enablePin;
     bool enabling;
+    bool parking;
 
     u_int minPulse;
     u_int maxPulse;
